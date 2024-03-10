@@ -6,6 +6,7 @@ import 'package:ui/models/entry.dart';
 import 'package:path/path.dart' as path;
 
 class EntryController extends GetxController {
+  final entriesFiltered = <Entry>[].obs;
   final entries = <Entry>[].obs;
 
   void loadAllEntries(Directory directory) {
@@ -36,5 +37,19 @@ class EntryController extends GetxController {
     entries.sort((a, b) {
       return a.title.toLowerCase().compareTo(b.title);
     });
+
+    filterEntries('');
+  }
+
+  void filterEntries(String search) {
+    entriesFiltered.value = entries
+        .where(
+          (p0) =>
+              p0.title.contains(search) ||
+              search.split(' ').map((element) {
+                return p0.tags.contains(element);
+              }).firstWhere((element) => true),
+        )
+        .toList();
   }
 }

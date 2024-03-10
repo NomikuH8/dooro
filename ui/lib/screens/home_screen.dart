@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 import 'package:ui/controllers/entry_controller.dart';
 import 'package:ui/controllers/preferences_controller.dart';
@@ -18,22 +19,27 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final entryController = Get.find<EntryController>();
+  final searchController = TextEditingController();
 
   void goToAddEntry() {
     Get.to(() => const CreateEntryScreen());
+  }
+
+  void search() {
+    entryController.filterEntries(searchController.text);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.deepPurple,
         title: const Text(
           'Dooro',
           style: TextStyle(
             color: Colors.white,
           ),
         ),
-        backgroundColor: Colors.deepPurple,
         actions: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -45,19 +51,47 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: Obx(
-        () => GridView.builder(
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 300.0,
-            mainAxisExtent: 250.0,
-          ),
-          itemCount: entryController.entries.length,
-          itemBuilder: (context, index) {
-            return EntryCard(
-              entry: entryController.entries[index],
-            );
-          },
-        ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: TextField(
+                  controller: searchController,
+                  onChanged: (value) => search(),
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    label: Text('Search'),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: SingleChildScrollView(
+                  child: SizedBox(
+                    height: constraints.maxHeight - 88.0,
+                    child: Obx(
+                      () => GridView.builder(
+                        gridDelegate:
+                            const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 200.0,
+                          mainAxisExtent: 250.0,
+                        ),
+                        itemCount: entryController.entriesFiltered.length,
+                        itemBuilder: (context, index) {
+                          return EntryCard(
+                            entry: entryController.entriesFiltered[index],
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -70,8 +104,13 @@ class EntryCard extends StatelessWidget {
   EntryCard({super.key, required this.entry});
 
   File getImageFile() {
-    return File(path.join(
-        preferencesController.defaultPath.value, 'images', entry.imagePath));
+    return File(
+      path.join(
+        preferencesController.defaultPath.value,
+        'images',
+        entry.imagePath,
+      ),
+    );
   }
 
   @override
@@ -98,7 +137,10 @@ class EntryCard extends StatelessWidget {
                 height: 8.0,
               ),
               Center(
-                child: Text(entry.title),
+                child: Text(
+                  entry.title,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),

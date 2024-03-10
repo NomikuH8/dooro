@@ -8,10 +8,13 @@ import 'package:ui/controllers/entry_controller.dart';
 import 'package:ui/controllers/preferences_controller.dart';
 import 'package:ui/controllers/tag_controller.dart';
 import 'package:path/path.dart' as path;
+import 'package:ui/models/entry.dart';
 import 'package:uuid/uuid.dart';
 
 class CreateEntryScreen extends StatefulWidget {
-  const CreateEntryScreen({super.key});
+  final Entry? entry;
+
+  const CreateEntryScreen({super.key, this.entry});
 
   @override
   State<CreateEntryScreen> createState() => _CreateEntryScreenState();
@@ -75,16 +78,8 @@ class _CreateEntryScreenState extends State<CreateEntryScreen> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Original image'),
-          content: const Text('Do you want to delete the original image'),
+          content: const Text('Do you want to delete the original image?'),
           actions: [
-            TextButton(
-              onPressed: () {
-                finishAddEntry(true);
-                Navigator.of(context).pop();
-                Get.back();
-              },
-              child: const Text('Yes'),
-            ),
             TextButton(
               onPressed: () {
                 finishAddEntry(false);
@@ -93,10 +88,45 @@ class _CreateEntryScreenState extends State<CreateEntryScreen> {
               },
               child: const Text('No'),
             ),
+            TextButton(
+              onPressed: () {
+                finishAddEntry(true);
+                Navigator.of(context).pop();
+                Get.back();
+              },
+              child: const Text('Yes'),
+            ),
           ],
         );
       },
     );
+  }
+
+  void confirmEditEntry() {
+    final defaultPath = preferencesController.defaultPath.value;
+    final entry = widget.entry!;
+
+    final uuidV4 = entry.imagePath.split('.')[0];
+    final metaPath = path.join(defaultPath, 'meta', '$uuidV4.json');
+
+    File(metaPath).writeAsStringSync(jsonEncode({
+      'title': titleController.text,
+      'imagePath': entry.imagePath,
+      'tags': tagsController.text.split(' '),
+    }));
+
+    final currentEntry = entryController.entries.firstWhere(
+      (element) => element.imagePath == entry.imagePath,
+    );
+
+    currentEntry.title = titleController.text;
+    currentEntry.tags = tagsController.text.split(' ');
+
+    entryController.loadAllEntries(
+      Directory(defaultPath),
+    );
+
+    Get.back();
   }
 
   void finishAddEntry(bool delete) {
@@ -111,11 +141,18 @@ class _CreateEntryScreenState extends State<CreateEntryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    String title = 'Create entry';
+    if (widget.entry != null) {
+      title = 'Edit entry';
+      titleController.text = widget.entry!.title;
+      tagsController.text = widget.entry!.tags.join(' ');
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Create entry',
-          style: TextStyle(
+        title: Text(
+          title,
+          style: const TextStyle(
             color: Colors.white,
           ),
         ),
@@ -127,7 +164,14 @@ class _CreateEntryScreenState extends State<CreateEntryScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: IconButton(
-              onPressed: () => confirmEntry(context),
+              onPressed: () {
+                if (widget.entry == null) {
+                  confirmEntry(context);
+                  return;
+                }
+
+                confirmEditEntry();
+              },
               icon: const Icon(Icons.check),
               color: Colors.white,
             ),
@@ -159,15 +203,16 @@ class _CreateEntryScreenState extends State<CreateEntryScreen> {
               const SizedBox(
                 height: 16.0,
               ),
-              TextButton(
-                onPressed: () async => await selectImage(),
-                style: ButtonStyle(
-                  backgroundColor: MaterialStateProperty.all(
-                    Colors.deepPurple.shade100,
+              if (widget.entry == null)
+                TextButton(
+                  onPressed: () async => await selectImage(),
+                  style: ButtonStyle(
+                    backgroundColor: MaterialStateProperty.all(
+                      Colors.deepPurple.shade100,
+                    ),
                   ),
+                  child: const Text('Select image'),
                 ),
-                child: const Text('Select image'),
-              ),
               const SizedBox(
                 height: 16.0,
               ),
